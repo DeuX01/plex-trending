@@ -45,3 +45,4 @@ This script automates the retrieval of the top 50 trending movies and TV shows f
      2. Add the following line: `0 */12 * * * /usr/bin/python3 /path/to/your/plex-trending.py`.
      3. Save and exit the editor (e.g., Ctrl+X, Y, Enter).
 
+![Image](./library.jpg)
