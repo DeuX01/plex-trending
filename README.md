@@ -21,6 +21,8 @@ This script automates the retrieval of the top 50 trending movies and TV shows f
 
 3. **Configuration:**
    - Edit the `config.yml` file and provide your Trakt client ID and client secret.
+     - Replace `client_id: 'YOUR_TRAKT_CLIENT_ID'` with the client ID obtained from your Trakt API application.
+     - Replace `client_secret: 'YOUR_TRAKT_CLIENT_SECRET'` with the client secret obtained from your Trakt API application.
    - Replace `/path/to/trending_movies_symlink` and `/path/to/trending_tv_symlink` with the paths to two folders on your system where the symlinks will be created (e.g., `/mnt/trending_movies` and `/mnt/trending_shows`).
    - Replace `/path/to/movie_storage` and `/path/to/tv_show_storage` with the paths to the parent folders of your existing movies and TV shows (e.g., `/mnt/movies` and `/mnt/shows`).
    - Replace `http://YOUR_PLEX_SERVER_IP:32400` with your Plex server's IP.
@@ -42,3 +44,4 @@ This script automates the retrieval of the top 50 trending movies and TV shows f
      1. Open the crontab file by executing `crontab -e`.
      2. Add the following line: `0 */12 * * * /usr/bin/python3 /path/to/your/plex-trending.py`.
      3. Save and exit the editor (e.g., Ctrl+X, Y, Enter).
+
