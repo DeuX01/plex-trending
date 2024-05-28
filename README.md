@@ -11,7 +11,7 @@ This script automates the retrieval of the top 50 trending movies and TV shows f
 - **Sorting by Trending Order:** Movies and TV shows are sorted based on their trending order, facilitating easy identification and access.
 - **Renaming Convention:** Movies are renamed with a prefix '#' followed by a number corresponding to their trending order, enhancing clarity within the library.
 
-- **For more accurate results:** Movies folders should be named using the following format Name (year) [tmdbID] and shows folders should be named using the followong format Name (tvdbID). This can be easily done im bulk using sonarr and radarr renaming option.
+- **For more accurate results:** Movies folders should be named using the following format Name (year) [tmdbID] and shows folders should be named using the following format Name (tvdbID). This can be easily done im bulk using sonarr and radarr renaming option.
 
 ## Instructions:
 
