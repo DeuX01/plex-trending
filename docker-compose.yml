@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  plex_trending:
+    build: .
+    volumes:
+      - ./config:/app/config
+      - /path/to/trending_movies_symlink:/path/to/trending_movies_symlink
+      - /path/to/trending_tv_symlink:/path/to/trending_tv_symlink
+      - /path/to/movie_storage:/path/to/movie_storage
+      - /path/to/tv_show_storage:/path/to/tv_show_storage
+    environment:
+      - CONFIG_PATH=/app/config/config.yml
