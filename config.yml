@@ -1,0 +1,21 @@
+trakt:
+  client_id: 'YOUR_TRAKT_CLIENT_ID'
+  client_secret: 'YOUR_TRAKT_CLIENT_SECRET'
+  base_url: 'https://api.trakt.tv'
+  trending_movies_url: '/movies/trending?limit=50'
+  trending_tv_url: '/shows/trending?limit=50'
+
+paths:
+  movie_symlink_path: '/path/to/trending_movies_symlink'
+  tv_symlink_path: '/path/to/trending_tv_symlink'
+  movie_folder_path: '/path/to/movie_storage'
+  tv_folder_path: '/path/to/tv_show_storage'
+
+plex:
+  base_url: 'http://YOUR_PLEX_SERVER_IP:32400'
+  token: 'YOUR_PLEX_TOKEN'
+  trending_movies_library: 'YOUR_PLEX_MOVIES_LIBRARY_NAME'
+  trending_tv_library: 'YOUR_PLEX_TV_SHOWS_LIBRARY_NAME'
+
+discord:
+  webhook_url: "https://discord.com/api/webhooks/YOUR_DISCORD_WEBHOOK_ID/YOUR_DISCORD_WEBHOOK_TOKEN"
