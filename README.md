@@ -13,6 +13,8 @@ This script automates the retrieval of the top 50 trending movies and TV shows f
 
 - **For more accurate results:** Movies folders should be named using the following format Name (year) [tmdbID] and shows folders should be named using the following format Name (tvdbID). This can be easily done im bulk using sonarr and radarr renaming option.
 
+- **The Path for the Movies and Shows Library:** The paths inside Plex for existing Movies and Shows libraries, must match the local path. E.g. if your movies localy are in /mnt/movies, the path in the existing movies library inside plex must be also /mnt/movies. This is a limitation of the symlinks.
+
 ## Instructions:
 
 1. **Download and Setup:**
