@@ -1,0 +1,8 @@
+{
+    "movies": [
+        "Add TMDB IDs here, e.g., 614933"
+    ],
+    "tv_shows": [
+        "Add TVDB IDs here, e.g., 67890"
+    ]
+}
