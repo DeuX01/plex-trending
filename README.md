@@ -42,5 +42,3 @@ This script automates the retrieval of the top 50 trending movies and TV shows f
      1. Open the crontab file by executing `crontab -e`.
      2. Add the following line: `0 */12 * * * /usr/bin/python3 /path/to/your/plex-trending.py`.
      3. Save and exit the editor (e.g., Ctrl+X, Y, Enter).
-
-By following these instructions, you can seamlessly integrate trending movies and TV shows into your Plex library, enhancing your media consumption experience.
