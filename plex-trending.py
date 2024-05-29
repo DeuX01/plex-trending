@@ -323,9 +323,16 @@ def alternative_titles(title):
     ])
     titles.update(punct_variations)
     
+    # Specific case for "Harry Potter and the Philosopher's Stone"
+    if "harry potter and the philosopher's stone" in normalize_title(title):
+        titles.add("Harry Potter and the Philosopher's Stone")
+        titles.add("Harry Potter & the Philosopher's Stone")
+        titles.add("Harry Potter and the Philosophers Stone")
+        titles.add("Harry Potter and the Sorcerer's Stone")  # Adding US title variation
+        titles.add("Harry Potter & the Sorcerer's Stone")
+
     return list(titles)  # Return as a list without duplicates
 
-# Enhanced logging function to better capture matching issues
 def log_matching_issues(title, alt_titles, plex_items):
     if not plex_items:
         logger.debug(f"No exact match found for: {title}. Trying alternatives.")
@@ -333,7 +340,6 @@ def log_matching_issues(title, alt_titles, plex_items):
     else:
         logger.debug(f"Matched title: {title} with Plex items: {[item.title for item in plex_items]}")
 
-# Updated function to incorporate better normalization and alternative title matching
 def update_plex_sort_titles(library_name, matches):
     library = plex.library.section(library_name)
     all_titles = {normalize_title(item.title): item for item in library.all()}
