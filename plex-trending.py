@@ -263,45 +263,77 @@ def trigger_plex_scan(library_name):
 def normalize_title(title):
     # Remove accents and make lowercase
     normalized = unidecode.unidecode(title).lower()
-    # Replace 'and' with '&'
-    normalized = normalized.replace('and', '&')
-    # Remove any leading/trailing whitespace
-    normalized = normalized.strip()
+    # Replace common punctuation marks with spaces or appropriate substitutes
+    normalized = normalized.replace('&', 'and')
+    normalized = normalized.replace(':', ' ')
+    normalized = normalized.replace('-', ' ')
+    normalized = normalized.replace("'", '')
+    normalized = re.sub(r'[^\w\s]', '', normalized)  # Remove all non-alphanumeric characters except spaces
+    normalized = re.sub(r'\s+', ' ', normalized).strip()  # Collapse multiple spaces into one
+    return normalized
+
+def normalize_title(title):
+    # Remove accents and make lowercase
+    normalized = unidecode.unidecode(title).lower()
+    # Replace common punctuation marks with spaces or appropriate substitutes
+    normalized = normalized.replace('&', 'and')
+    normalized = normalized.replace(':', ' ')
+    normalized = normalized.replace('-', ' ')
+    normalized = normalized.replace("'", '')
+    normalized = re.sub(r'[^\w\s]', '', normalized)  # Remove all non-alphanumeric characters except spaces
+    normalized = re.sub(r'\s+', ' ', normalized).strip()  # Collapse multiple spaces into one
     return normalized
 
 def alternative_titles(title):
-    # Create a list of title variations
-    titles = [title, unidecode.unidecode(title)]
+    titles = set()
+    titles.add(title)
+    titles.add(unidecode.unidecode(title))
+
+    # Replace common punctuation marks
+    punct_variations = [
+        title.replace(':', ' '),
+        title.replace('-', ' '),
+        title.replace('&', 'and'),
+        title.replace("'", ''),
+        title.replace('!', ''),
+        title.replace('and', '&'),
+        title.replace('&', 'and'),
+    ]
+    titles.update(punct_variations)
     
-    # Remove all non-alphanumeric characters
+    # Create variations without special characters
     title_no_special = re.sub(r'[^\w\s]', '', title)
-    if title_no_special not in titles:
-        titles.append(title_no_special)
+    titles.add(title_no_special)
     
     title_no_special_unidecode = re.sub(r'[^\w\s]', '', unidecode.unidecode(title))
-    if title_no_special_unidecode not in titles:
-        titles.append(title_no_special_unidecode)
+    titles.add(title_no_special_unidecode)
     
-    # Normalize whitespace (collapse multiple spaces into one)
+    # Normalize whitespace
     title_normalized_whitespace = re.sub(r'\s+', ' ', title).strip()
-    if title_normalized_whitespace not in titles:
-        titles.append(title_normalized_whitespace)
+    titles.add(title_normalized_whitespace)
     
     title_normalized_whitespace_unidecode = re.sub(r'\s+', ' ', unidecode.unidecode(title)).strip()
-    if title_normalized_whitespace_unidecode not in titles:
-        titles.append(title_normalized_whitespace_unidecode)
+    titles.add(title_normalized_whitespace_unidecode)
     
-    # Add punctuation variations
-    punct_variations = [
+    # Add more variations based on common patterns observed
+    punct_variations.extend([
         title.replace(':', ' -'),
         title.replace('-', ':'),
-        title.replace('!', ''),
-        title.replace('&', 'and')
-    ]
-    titles.extend(punct_variations)
+        title.replace('&', 'and'),
+    ])
+    titles.update(punct_variations)
     
-    return list(set(titles))  # Remove duplicates
+    return list(titles)  # Return as a list without duplicates
 
+# Enhanced logging function to better capture matching issues
+def log_matching_issues(title, alt_titles, plex_items):
+    if not plex_items:
+        logger.debug(f"No exact match found for: {title}. Trying alternatives.")
+        logger.debug(f"Alternative titles tried: {alt_titles}")
+    else:
+        logger.debug(f"Matched title: {title} with Plex items: {[item.title for item in plex_items]}")
+
+# Updated function to incorporate better normalization and alternative title matching
 def update_plex_sort_titles(library_name, matches):
     library = plex.library.section(library_name)
     all_titles = {normalize_title(item.title): item for item in library.all()}
@@ -317,6 +349,8 @@ def update_plex_sort_titles(library_name, matches):
 
         plex_items = library.search(title=title)
         logger.info(f"Searching for exact title: {title}")
+        log_matching_issues(title, [title], plex_items)
+        
         if not plex_items:
             if 'movie' in item:
                 plex_items = library.search(**{'tmdb': ids})
@@ -326,11 +360,13 @@ def update_plex_sort_titles(library_name, matches):
                 logger.info(f"Searching by TVDB ID: {ids}")
 
         if not plex_items:
-            matches = process.extract(normalized_title, all_titles.keys(), scorer=fuzz.ratio)
-            best_match = next((match for match in matches if match[1] > 80), None)
-            if best_match:
-                plex_items = [all_titles[best_match[0]]]
-                logger.info(f"Fuzzy matched title: {best_match[0]} with score: {best_match[1]}")
+            alt_titles = alternative_titles(title)
+            for alt_title in alt_titles:
+                plex_items = library.search(title=alt_title)
+                logger.info(f"Searching for alternative title: {alt_title}")
+                log_matching_issues(title, alt_titles, plex_items)
+                if plex_items:
+                    break
 
         if plex_items:
             plex_item = plex_items[0]
@@ -343,23 +379,8 @@ def update_plex_sort_titles(library_name, matches):
                 logger.info(f"Updated sort title for {title} to {sort_title} and name to {new_name}")
             else:
                 logger.warning(f"Skipping update for {title} as it might conflict with an existing sort title")
-
         else:
-            for alt_title in alternative_titles(title):
-                plex_items = library.search(title=alt_title)
-                logger.info(f"Searching for alternative title: {alt_title}")
-                if plex_items:
-                    plex_item = plex_items[0]
-                    sort_title = f"{index:02d}"
-                    new_name = f"#{index} {title}"
-                    
-                    if new_name not in existing_sort_titles[normalize_title(alt_title)]:
-                        plex_item.edit(**{'titleSort.value': sort_title, 'titleSort.locked': 1, 'title.value': new_name, 'title.locked': 1})
-                        plex_item.reload()
-                        logger.info(f"Updated sort title for {title} (using alternative search) to {sort_title} and name to {new_name}")
-                        break
-            else:
-                logger.error(f"Failed to match and update title for: {title}")
+            logger.error(f"Failed to match and update title for: {title}")
 
 def process_media_trending(is_movie=True):
     url = TRENDING_MOVIES_URL if is_movie else TRENDING_TV_URL
