@@ -258,7 +258,7 @@ def compare_with_folders(json_data, folder_names, symlink_path, is_movie=False):
                     matches.append({"title": title, "folder_name": folder})
                     source_path = os.path.join(MOVIE_FOLDER_PATH if is_movie else TV_FOLDER_PATH, folder)
                     symlink_dest = os.path.join(symlink_path, folder)
-                    set_read_permissions(source_path)
+                    # set_read_permissions(source_path)
                     create_symlink(source_path, symlink_dest)
                     new_items.append({"title": title, "folder_name": folder})
                     count += 1
@@ -275,7 +275,7 @@ def compare_with_folders(json_data, folder_names, symlink_path, is_movie=False):
                     matches.append({"title": title, "folder_name": folder})
                     source_path = os.path.join(MOVIE_FOLDER_PATH if is_movie else TV_FOLDER_PATH, folder)
                     symlink_dest = os.path.join(symlink_path, folder)
-                    set_read_permissions(source_path)
+                    # set_read_permissions(source_path)
                     create_symlink(source_path, symlink_dest)
                     new_items.append({"title": title, "folder_name": folder})
                     count += 1
