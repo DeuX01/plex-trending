@@ -7,9 +7,21 @@ import stat
 import yaml
 import unidecode
 import collections
+import schedule
+import time
 from plexapi.server import PlexServer
 from fuzzywuzzy import fuzz, process
 from collections import defaultdict
+
+def schedule_tasks():
+    movie_times = config['schedule']['movie_times']
+    tv_times = config['schedule']['tv_times']
+    
+    for time in movie_times:
+        schedule.every().day.at(time).do(process_media_trending, is_movie=True)
+    
+    for time in tv_times:
+        schedule.every().day.at(time).do(process_media_trending, is_movie=False)
 
 # Configure logging
 log_folder = 'log'
@@ -142,19 +154,6 @@ def extract_id_from_folder_name(folder_name):
     match = re.search(r'\[(\d+)\]', folder_name)
     return match.group(1) if match else None
 
-def set_read_permissions(path):
-    for root, dirs, files in os.walk(path):
-        for name in dirs:
-            try:
-                os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-            except PermissionError as e:
-                logger.error(f"PermissionError: {e} - {os.path.join(root, name)}")
-        for name in files:
-            try:
-                os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-            except PermissionError as e:
-                logger.error(f"PermissionError: {e} - {os.path.join(root, name)}")
-
 def create_symlink(source, dest):
     try:
         if not os.path.exists(dest):
@@ -258,7 +257,6 @@ def compare_with_folders(json_data, folder_names, symlink_path, is_movie=False):
                     matches.append({"title": title, "folder_name": folder})
                     source_path = os.path.join(MOVIE_FOLDER_PATH if is_movie else TV_FOLDER_PATH, folder)
                     symlink_dest = os.path.join(symlink_path, folder)
-                    # set_read_permissions(source_path)
                     create_symlink(source_path, symlink_dest)
                     new_items.append({"title": title, "folder_name": folder})
                     count += 1
@@ -275,7 +273,6 @@ def compare_with_folders(json_data, folder_names, symlink_path, is_movie=False):
                     matches.append({"title": title, "folder_name": folder})
                     source_path = os.path.join(MOVIE_FOLDER_PATH if is_movie else TV_FOLDER_PATH, folder)
                     symlink_dest = os.path.join(symlink_path, folder)
-                    # set_read_permissions(source_path)
                     create_symlink(source_path, symlink_dest)
                     new_items.append({"title": title, "folder_name": folder})
                     count += 1
@@ -317,62 +314,65 @@ def update_plex_sort_titles(library_name, matches):
         normalized_title = normalize_title(title)
         ids = item['folder_name']
 
-        # Try searching with normalized title
-        plex_items = library.search(title=normalized_title)
-        logger.info(f"Searching for normalized title: {normalized_title}")
-        log_matching_issues(title, [normalized_title], plex_items)
-        
-        if not plex_items:
-            # Try searching by exact title
-            plex_items = library.search(title=title)
-            logger.info(f"Searching for exact title: {title}")
-            log_matching_issues(title, [title], plex_items)
+        retries = 3
+        while retries > 0:
+            plex_items = library.search(title=normalized_title)
+            logger.info(f"Searching for normalized title: {normalized_title}")
+            log_matching_issues(title, [normalized_title], plex_items)
+            
+            if not plex_items:
+                plex_items = library.search(title=title)
+                logger.info(f"Searching for exact title: {title}")
+                log_matching_issues(title, [title], plex_items)
 
-        if not plex_items:
-            # Try searching by IDs
-            if 'movie' in item:
-                plex_items = library.search(**{'tmdb': ids})
-                logger.info(f"Searching by TMDB ID: {ids}")
-            elif 'show' in item:
-                plex_items = library.search(**{'tvdb': ids})
-                logger.info(f"Searching by TVDB ID: {ids}")
-            log_matching_issues(title, [ids], plex_items)
+            if not plex_items:
+                if 'movie' in item:
+                    plex_items = library.search(**{'tmdb': ids})
+                    logger.info(f"Searching by TMDB ID: {ids}")
+                elif 'show' in item:
+                    plex_items = library.search(**{'tvdb': ids})
+                    logger.info(f"Searching by TVDB ID: {ids}")
+                log_matching_issues(title, [ids], plex_items)
 
-        if not plex_items:
-            # Try searching using alternative titles
-            alt_titles = alternative_titles(title)
-            for alt_title in alt_titles:
-                normalized_alt_title = normalize_title(alt_title)
-                plex_items = library.search(title=normalized_alt_title)
-                logger.info(f"Searching for normalized alternative title: {normalized_alt_title}")
-                log_matching_issues(title, [normalized_alt_title], plex_items)
-                if plex_items:
-                    break
+            if not plex_items:
+                alt_titles = alternative_titles(title)
+                for alt_title in alt_titles:
+                    normalized_alt_title = normalize_title(alt_title)
+                    plex_items = library.search(title=normalized_alt_title)
+                    logger.info(f"Searching for normalized alternative title: {normalized_alt_title}")
+                    log_matching_issues(title, [normalized_alt_title], plex_items)
+                    if plex_items:
+                        break
 
-        if not plex_items:
-            # If no exact match, use fuzzy matching
-            library_titles = {normalize_title(item.title): item for item in library.all()}
-            fuzzy_match, score = process.extractOne(normalized_title, library_titles.keys(), scorer=fuzz.token_sort_ratio)
-            if score >= 80:
-                plex_item = library_titles[fuzzy_match]
-                logger.info(f"Fuzzy matched '{title}' with Plex title '{plex_item.title}' (score: {score})")
+            if not plex_items:
+                library_titles = {normalize_title(item.title): item for item in library.all()}
+                fuzzy_match, score = process.extractOne(normalized_title, library_titles.keys(), scorer=fuzz.token_sort_ratio)
+                if score >= 80:
+                    plex_item = library_titles[fuzzy_match]
+                    logger.info(f"Fuzzy matched '{title}' with Plex title '{plex_item.title}' (score: {score})")
+                else:
+                    logger.error(f"Failed to match and update title for: {title} on retry {4 - retries}")
+                    retries -= 1
+                    continue
             else:
-                logger.error(f"Failed to match and update title for: {title}")
-                continue
-        else:
-            fuzzy_match = False
+                fuzzy_match = False
 
-        if plex_items:
-            plex_item = plex_items[0] if not fuzzy_match else plex_item
-            sort_title = f"{index:02d}"
-            new_name = f"#{index} {title}"
+            if plex_items:
+                plex_item = plex_items[0] if not fuzzy_match else plex_item
+                sort_title = f"{index:02d}"
+                new_name = f"#{index} {title}"
 
-            if new_name not in existing_sort_titles[normalized_title]:
-                plex_item.edit(**{'titleSort.value': sort_title, 'titleSort.locked': 1, 'title.value': new_name, 'title.locked': 1})
-                plex_item.reload()
-                logger.info(f"Updated sort title for {title} to {sort_title} and name to {new_name}")
-            else:
-                logger.warning(f"Skipping update for {title} as it might conflict with an existing sort title")
+                if new_name not in existing_sort_titles[normalized_title]:
+                    plex_item.edit(**{'titleSort.value': sort_title, 'titleSort.locked': 1, 'title.value': new_name, 'title.locked': 1})
+                    plex_item.reload()
+                    logger.info(f"Updated sort title for {title} to {sort_title} and name to {new_name}")
+                else:
+                    logger.warning(f"Skipping update for {title} as it might conflict with an existing sort title")
+                break
+
+        if retries == 0:
+            logger.error(f"Failed to match and update title for: {title} after 3 retries")
+
 
 def trigger_plex_scan(library_name):
     library = plex.library.section(library_name)
@@ -401,5 +401,15 @@ def process_media_trending(is_movie=True):
     update_plex_sort_titles(PLEX_TRENDING_MOVIES_LIBRARY if is_movie else PLEX_TRENDING_TV_LIBRARY, matches)
 
 if __name__ == "__main__":
-    process_media_trending(is_movie=True)
-    process_media_trending(is_movie=False)
+    # Run the script at start
+    process_media_trending(is_movie=True)  # For movies
+    process_media_trending(is_movie=False)  # For TV shows
+
+    # Schedule tasks to run during specified times
+    schedule_tasks()
+
+    # Keep the script running and execute scheduled tasks
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Check every minute
+
